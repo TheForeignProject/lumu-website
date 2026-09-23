@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 100vw;
+    height: 100vh;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* 舞台容器：预留呼吸外距，阴影不会被外框裁切 */
+  .stage {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px 24px;
+  }
+
+  /* 极浅双层环境漫反射阴影 */
+  #drink-book-container {
+    box-shadow: 
+      0 12px 32px -4px rgba(0, 0, 0, 0.08), 
+      0 4px 12px -2px rgba(0, 0, 0, 0.04);
+    background: transparent;
+    border-radius: 2px;
+  }
+
+  .page {
+    background-color: #fff;
+    overflow: hidden;
+  }
+
+  /* 保证 9:19.5 竖版修长页面完整饱满，绝不拉伸变形 */
+  .page img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+
+  /* 纯英文 Prev / Next 极简控制栏 */
+  .controls {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    z-index: 1000;
+  }
+
+  .btn {
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    border: none;
+    padding: 7px 22px;
+    border-radius: 20px;
+    font-size: 12px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .btn:hover {
+    background: rgba(0, 0, 0, 0.95);
+    transform: scale(1.04);
+  }
+</style>
+
+<!-- 引入 Page-Flip 官方稳定镜像 -->
+<script src="https://unpkg.com/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+</head>
+<body>
+
+<div class="stage">
+  <div id="drink-book-container">
+    <!-- 1. 左侧初始展开底页：封底 (drink-back.webp) -->
+    <div class="page">
+      <img src="drink-back.webp" alt="Back Cover">
+    </div>
+
+    <!-- 2. 右侧初始展开页：封面 (drink-cover.webp) -->
+    <div class="page">
+      <img src="drink-cover.webp" alt="Cover">
+    </div>
+
+    <!-- 3. 正文内页：drink-page1 到 drink-page26 -->
+    <div class="page"><img src="drink-page1.webp"></div>
+    <div class="page"><img src="drink-page2.webp"></div>
+    <div class="page"><img src="drink-page3.webp"></div>
+    <div class="page"><img src="drink-page4.webp"></div>
+    <div class="page"><img src="drink-page5.webp"></div>
+    <div class="page"><img src="drink-page6.webp"></div>
+    <div class="page"><img src="drink-page7.webp"></div>
+    <div class="page"><img src="drink-page8.webp"></div>
+    <div class="page"><img src="drink-page9.webp"></div>
+    <div class="page"><img src="drink-page10.webp"></div>
+    <div class="page"><img src="drink-page11.webp"></div>
+    <div class="page"><img src="drink-page12.webp"></div>
+    <div class="page"><img src="drink-page13.webp"></div>
+    <div class="page"><img src="drink-page14.webp"></div>
+    <div class="page"><img src="drink-page15.webp"></div>
+    <div class="page"><img src="drink-page16.webp"></div>
+    <div class="page"><img src="drink-page17.webp"></div>
+    <div class="page"><img src="drink-page18.webp"></div>
+    <div class="page"><img src="drink-page19.webp"></div>
+    <div class="page"><img src="drink-page20.webp"></div>
+    <div class="page"><img src="drink-page21.webp"></div>
+    <div class="page"><img src="drink-page22.webp"></div>
+    <div class="page"><img src="drink-page23.webp"></div>
+    <div class="page"><img src="drink-page24.webp"></div>
+    <div class="page"><img src="drink-page25.webp"></div>
+    <div class="page"><img src="drink-page26.webp"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn" id="btn-prev">Prev</button>
+  <button class="btn" id="btn-next">Next</button>
+</div>
+
+<script>
+  window.addEventListener('load', function() {
+    var bookElem = document.getElementById('drink-book-container');
+    var btnPrev = document.getElementById('btn-prev');
+    var btnNext = document.getElementById('btn-next');
+
+    var pageFlip = new St.PageFlip(bookElem, {
+      width: 360,             // 单页基准宽
+      height: 760,            // 单页基准高 (针对长条形版式)
+      size: "stretch",        // 随部件框弹性缩放
+      minWidth: 200,
+      maxWidth: 550,
+      minHeight: 420,
+      maxHeight: 1100,
+      drawShadow: true,       // 保持弧形柔光阴影
+      flippingTime: 1100,     // 1.1 秒柔顺缓动
+      showCover: false,       // 保持封面柔性纸张翻折
+      usePortrait: false,     // 强制双页平铺模式
+      startPage: 0,           // 初始摊开展现：左封底 + 右封面
+      useMouseEvents: true    // 允许鼠标按住纸角自由卷折
+    });
+
+    pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+    btnNext.addEventListener('click', function() {
+      pageFlip.flipNext();
+    });
+
+    btnPrev.addEventListener('click', function() {
+      pageFlip.flipPrev();
+    });
+  });
+</script>
+
+</body>
+</html>

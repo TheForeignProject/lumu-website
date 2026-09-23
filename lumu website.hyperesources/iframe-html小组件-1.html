@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+  }
+  html, body {
+    width: 100vw;
+    height: 100vh;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+  }
+
+  /* 舞台区域：预留底部 56px 给按钮，防止书本与按钮重叠 */
+  .stage {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 56px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4px 6px;
+    overflow: hidden;
+  }
+
+  #book-container {
+    box-shadow: 
+      0 12px 32px -4px rgba(0, 0, 0, 0.12), 
+      0 4px 12px -2px rgba(0, 0, 0, 0.06);
+    background: transparent;
+    border-radius: 2px;
+  }
+
+  /* 彻底消除白边：暗调底色融合 + 严格裁切 */
+  .page {
+    background-color: #211c19;
+    overflow: hidden;
+  }
+
+  /* 铺满整个切片，杜绝上下左右露白 */
+  .page img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+
+  /* 控制栏：贴底居中展示，层级置顶 */
+  .controls {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    width: 100%;
+    height: 46px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    z-index: 9999;
+  }
+
+  /* 原版按钮尺寸与风格 */
+  .btn {
+    background: rgba(0, 0, 0, 0.75);
+    color: #ffffff;
+    border: none;
+    padding: 7px 22px;
+    border-radius: 20px;
+    font-size: 12px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .btn:hover {
+    background: rgba(0, 0, 0, 0.95);
+    transform: scale(1.04);
+  }
+  .btn:active {
+    transform: scale(0.96);
+  }
+</style>
+
+<!-- Page-Flip 官方脚本 -->
+<script src="https://unpkg.com/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+</head>
+<body>
+
+<div class="stage">
+  <div id="book-container">
+    <!-- 封底 -->
+    <div class="page">
+      <img src="book-back.webp" alt="Back Cover">
+    </div>
+
+    <!-- 封面 -->
+    <div class="page">
+      <img src="book-cover.webp" alt="Cover">
+    </div>
+
+    <!-- 正文内页（按需增减或替换后缀） -->
+    <div class="page"><img src="book-page1.webp"></div>
+    <div class="page"><img src="book-page2.webp"></div>
+    <div class="page"><img src="book-page3.webp"></div>
+    <div class="page"><img src="book-page4.webp"></div>
+    <div class="page"><img src="book-page5.webp"></div>
+    <div class="page"><img src="book-page6.webp"></div>
+    <div class="page"><img src="book-page7.webp"></div>
+    <div class="page"><img src="book-page8.webp"></div>
+    <div class="page"><img src="book-page9.webp"></div>
+    <div class="page"><img src="book-page10.webp"></div>
+    <div class="page"><img src="book-page11.webp"></div>
+    <div class="page"><img src="book-page12.webp"></div>
+    <div class="page"><img src="book-page13.webp"></div>
+    <div class="page"><img src="book-page14.webp"></div>
+    <div class="page"><img src="book-page15.webp"></div>
+    <div class="page"><img src="book-page16.webp"></div>
+    <div class="page"><img src="book-page17.webp"></div>
+    <div class="page"><img src="book-page18.webp"></div>
+    <div class="page"><img src="book-page19.webp"></div>
+    <div class="page"><img src="book-page20.webp"></div>
+    <div class="page"><img src="book-page21.webp"></div>
+    <div class="page"><img src="book-page22.webp"></div>
+    <div class="page"><img src="book-page23.webp"></div>
+    <div class="page"><img src="book-page24.webp"></div>
+    <div class="page"><img src="book-page25.webp"></div>
+    <div class="page"><img src="book-page26.webp"></div>
+    <div class="page"><img src="book-page27.webp"></div>
+    <div class="page"><img src="book-page28.webp"></div>
+    <div class="page"><img src="book-page29.webp"></div>
+    <div class="page"><img src="book-page30.webp"></div>
+    <div class="page"><img src="book-page31.webp"></div>
+    <div class="page"><img src="book-page32.webp"></div>
+    <div class="page"><img src="book-page33.webp"></div>
+    <div class="page"><img src="book-page34.webp"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn" id="btn-prev">Prev</button>
+  <button class="btn" id="btn-next">Next</button>
+</div>
+
+<script>
+  window.addEventListener('load', function() {
+    var bookElem = document.getElementById('book-container');
+    var btnPrev = document.getElementById('btn-prev');
+    var btnNext = document.getElementById('btn-next');
+
+    // 严格匹配原图比例 706 : 1000
+    var pageFlip = new St.PageFlip(bookElem, {
+      width: 353,            // 单页宽（原图 706/2）
+      height: 500,           // 单页高（原图 1000/2）
+      size: "stretch",
+      minWidth: 100,         // 放宽最小下限，防止手机端横向溢出
+      maxWidth: 600,
+      minHeight: 140,
+      maxHeight: 900,
+      drawShadow: true,
+      flippingTime: 850,
+      showCover: false,
+      usePortrait: false,    // 保持左右双页平铺
+      startPage: 0,
+      autoSize: true,
+      useMouseEvents: true
+    });
+
+    pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+    btnNext.addEventListener('click', function(e) {
+      if (e) e.stopPropagation();
+      pageFlip.flipNext();
+    });
+
+    btnPrev.addEventListener('click', function(e) {
+      if (e) e.stopPropagation();
+      pageFlip.flipPrev();
+    });
+
+    window.addEventListener('resize', function() {
+      pageFlip.updateFromHtml(document.querySelectorAll('.page'));
+    });
+  });
+</script>
+
+</body>
+</html>
