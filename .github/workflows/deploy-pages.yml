@@ -29,10 +29,8 @@ jobs:
 
       - name: Stage static website
         run: |
-          mkdir -p _site
-          cp -a index.html "lumu website.hyperesources" _site/
-          test -f _site/index.html
-          test -f "_site/lumu website.hyperesources/lumuwebsite_hype_generated_script.js"
+          python3 -m unittest discover -s tests -v
+          python3 scripts/prepare_site.py
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
