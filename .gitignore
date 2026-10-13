@@ -1,5 +1,7 @@
 .DS_Store
 Icon*
+!site/icons/
+!site/icons/**
 _site/
 __pycache__/
 .task/
