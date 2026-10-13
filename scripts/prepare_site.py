@@ -48,16 +48,20 @@ def brand_head(html, template):
 
     content = re.sub(r"<(?:meta|link)\b[^>]*>", remove_old_tag, content, flags=FLAGS)
 
+    def is_website(node):
+        types = node.get("@type") if isinstance(node, dict) else None
+        return types == "WebSite" or isinstance(types, list) and "WebSite" in types
+
     def remove_old_website(match):
         _, attrs = attributes(match.group(1))
         if (attrs.get("type") or "").lower() != "application/ld+json":
             return match.group(0)
         data = json.loads(match.group(2))
-        if isinstance(data, dict) and data.get("@type") == "WebSite":
+        if is_website(data):
             return ""
         # A mixed graph needs deliberate merging so unrelated entities survive.
         nodes = data.get("@graph", []) if isinstance(data, dict) else data if isinstance(data, list) else []
-        if any(isinstance(node, dict) and node.get("@type") == "WebSite" for node in nodes):
+        if any(is_website(node) for node in nodes):
             raise ValueError("Existing WebSite in a JSON-LD graph: merge it into site/seo-head.html before publishing")
         return match.group(0)
 

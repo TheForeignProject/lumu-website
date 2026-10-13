@@ -96,6 +96,21 @@ class PrepareSiteTests(unittest.TestCase):
             self.prepare(self.source)
         self.assertEqual((self.output / "index.html").read_bytes(), previous)
 
+    def test_array_form_website_type_is_replaced(self):
+        old = b'<script type="application/ld+json">{"@type":["WebSite"],"name":"Old brand"}</script>'
+        (self.source / "index.html").write_bytes(self.original.replace(b"</head>", old + b"</head>"))
+        self.prepare(self.source)
+        published = (self.output / "index.html").read_text()
+        self.assertNotIn("Old brand", published)
+        self.assertEqual(published.count('"@type": "WebSite"'), 1)
+
+    def test_array_form_website_in_mixed_graph_requires_explicit_merge(self):
+        graph = b'<script type="application/ld+json">{"@graph":[{"@type":["WebSite"],"name":"Old brand"},{"@type":"Organization","name":"LUMU"}]}</script>'
+        (self.source / "index.html").write_bytes(self.original.replace(b"</head>", graph + b"</head>"))
+        with self.assertRaisesRegex(ValueError, "merge"):
+            self.prepare(self.source)
+        self.assertFalse(self.output.exists())
+
     def test_missing_hype_script_is_rejected(self):
         (self.source / "lumu website.hyperesources" / "lumuwebsite_hype_generated_script.js").unlink()
         with self.assertRaisesRegex(ValueError, "Hype"):
