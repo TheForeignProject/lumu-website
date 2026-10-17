@@ -10,6 +10,8 @@ import sys
 
 RESOURCES = "lumu website.hyperesources"
 HYPE_SCRIPT = "lumuwebsite_hype_generated_script.js"
+ROUTER_SCRIPT = "hype-hash-router.js"
+ROUTER_TAG = f'<script src="{ROUTER_SCRIPT}" data-hype-route-exclude=\'["dh"]\'></script>'
 ICONS = ("favicon.png", "favicon.ico")
 FLAGS = re.IGNORECASE | re.DOTALL
 
@@ -66,7 +68,7 @@ def brand_head(html, template):
         return match.group(0)
 
     content = re.sub(r"(<script\b[^>]*>)(.*?)</script\s*>", remove_old_website, content, flags=FLAGS)
-    return html[:head.start(1)] + content + "\n" + template.rstrip() + "\n" + html[head.end(1):]
+    return html[:head.start(1)] + content + "\n" + template.rstrip() + "\n" + ROUTER_TAG + "\n" + html[head.end(1):]
 
 
 def prepare_site(source):
@@ -74,7 +76,7 @@ def prepare_site(source):
     source = Path(source).resolve()
     output = source / "_site"
     required = [source / "index.html", source / RESOURCES / HYPE_SCRIPT,
-                source / "site" / "seo-head.html"]
+                source / "site" / "seo-head.html", source / "site" / ROUTER_SCRIPT]
     required.extend(source / "site" / "icons" / name for name in ICONS)
     for path in required:
         if not path.is_file():
@@ -96,6 +98,7 @@ def prepare_site(source):
     output.mkdir()
     shutil.copytree(source / RESOURCES, output / RESOURCES)
     (output / "index.html").write_bytes(published)
+    shutil.copyfile(source / "site" / ROUTER_SCRIPT, output / ROUTER_SCRIPT)
     for name in ICONS:
         shutil.copyfile(source / "site" / "icons" / name, output / name)
     return output

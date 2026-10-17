@@ -22,7 +22,8 @@ class PrepareSiteTests(unittest.TestCase):
         self.original = (
             b'<!DOCTYPE html>\r\n<html><head><title>lumu website</title>'
             b'<meta name="viewport" content="width=440">'
-            b'<style>body { background: #EAEBD5; }</style></head>\r\n'
+            b'<style>body { background: #EAEBD5; }</style>'
+            b'<script>window.designerCode = true;</script></head>\r\n'
             b'<body><script src="lumu%20website.hyperesources/'
             b'lumuwebsite_hype_generated_script.js?97637"></script>'
             b'<p>Caf\xc3\xa9</p></body></html>\r\n'
@@ -32,6 +33,7 @@ class PrepareSiteTests(unittest.TestCase):
         resources.mkdir()
         (resources / "lumuwebsite_hype_generated_script.js").write_bytes(b"Hype();\r\n")
         (resources / "photo.jpg").write_bytes(b"original image bytes")
+        self.resource_bytes = {path.name: path.read_bytes() for path in resources.iterdir()}
         shutil.copytree(ROOT / "site", self.source / "site")
         self.assertTrue(SCRIPT.is_file(), "Publishing script has not been implemented")
         spec = importlib.util.spec_from_file_location("prepare_site", SCRIPT)
@@ -53,19 +55,42 @@ class PrepareSiteTests(unittest.TestCase):
         self.assertEqual((self.source / "index.html").read_bytes(), self.original)
         self.assertEqual((self.output / "index.html").read_bytes().split(b"</head>")[1], self.original.split(b"</head>")[1])
         self.assertIn('<meta name="viewport" content="width=440">', published)
-        for path in (self.source / "lumu website.hyperesources").iterdir():
-            self.assertEqual((self.output / "lumu website.hyperesources" / path.name).read_bytes(), path.read_bytes())
+        for name, original in self.resource_bytes.items():
+            self.assertEqual((self.source / "lumu website.hyperesources" / name).read_bytes(), original)
+            self.assertEqual((self.output / "lumu website.hyperesources" / name).read_bytes(), original)
         for name in ("favicon.png", "favicon.ico"):
             self.assertEqual((self.output / name).read_bytes(), (self.source / "site" / "icons" / name).read_bytes())
-        self.assertEqual(set(p.name for p in self.output.iterdir()), {"index.html", "lumu website.hyperesources", "favicon.png", "favicon.ico"})
+        self.assertEqual(set(p.name for p in self.output.iterdir()), {"index.html", "lumu website.hyperesources", "favicon.png", "favicon.ico", "hype-hash-router.js"})
 
-    def test_new_designer_export_keeps_branding_and_removes_stale_assets(self):
+    def test_router_loads_once_at_end_of_head_before_generated_hype(self):
+        self.prepare(self.source)
+        published = (self.output / "index.html").read_bytes()
+        router = b'<script src="hype-hash-router.js" data-hype-route-exclude=\'["dh"]\'></script>'
+        head = published.split(b"</head>")[0]
+        self.assertEqual(published.count(b'src="hype-hash-router.js"'), 1)
+        self.assertTrue(head.rstrip().endswith(router))
+        self.assertLess(head.index(b"window.designerCode = true;"), head.index(router))
+        self.assertLess(published.index(router), published.index(b"lumuwebsite_hype_generated_script.js"))
+        self.assertEqual(published.split(b"</head>")[1], self.original.split(b"</head>")[1])
+
+    def test_publishes_router_bytes_without_changing_source(self):
+        self.prepare(self.source)
+        self.assertTrue((self.output / "hype-hash-router.js").is_file())
+        self.assertEqual((self.output / "hype-hash-router.js").read_bytes(), (ROOT / "site" / "hype-hash-router.js").read_bytes())
+        self.assertEqual((self.source / "site" / "hype-hash-router.js").read_bytes(), (ROOT / "site" / "hype-hash-router.js").read_bytes())
+
+    def test_new_designer_export_keeps_branding_and_router_and_removes_stale_assets(self):
         self.prepare(self.source)
         (self.output / "stale.txt").write_text("previous publication")
         (self.source / "lumu website.hyperesources" / "photo.jpg").unlink()
-        (self.source / "index.html").write_bytes(self.original.replace(b"lumu website", b"new designer export"))
+        replacement = self.original.replace(b"lumu website", b"new designer export").replace(b"Caf\xc3\xa9", b"New menu")
+        (self.source / "index.html").write_bytes(replacement)
         self.prepare(self.source)
         self.assertIn("<title>LUMU Singapore</title>", (self.output / "index.html").read_text())
+        self.assertEqual((self.output / "index.html").read_bytes().count(b'src="hype-hash-router.js"'), 1)
+        self.assertEqual((self.output / "hype-hash-router.js").read_bytes(), (self.source / "site" / "hype-hash-router.js").read_bytes())
+        self.assertEqual((self.source / "index.html").read_bytes(), replacement)
+        self.assertEqual((self.output / "index.html").read_bytes().split(b"</head>")[1], replacement.split(b"</head>")[1])
         self.assertFalse((self.output / "stale.txt").exists())
         self.assertFalse((self.output / "lumu website.hyperesources" / "photo.jpg").exists())
 
@@ -95,6 +120,14 @@ class PrepareSiteTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "favicon.png"):
             self.prepare(self.source)
         self.assertEqual((self.output / "index.html").read_bytes(), previous)
+
+    def test_missing_router_fails_before_replacing_previous_publication(self):
+        self.prepare(self.source)
+        previous = {path.relative_to(self.output): path.read_bytes() for path in self.output.rglob("*") if path.is_file()}
+        (self.source / "site" / "hype-hash-router.js").unlink(missing_ok=True)
+        with self.assertRaisesRegex(ValueError, "hype-hash-router.js"):
+            self.prepare(self.source)
+        self.assertEqual({path.relative_to(self.output): path.read_bytes() for path in self.output.rglob("*") if path.is_file()}, previous)
 
     def test_array_form_website_type_is_replaced(self):
         old = b'<script type="application/ld+json">{"@type":["WebSite"],"name":"Old brand"}</script>'
