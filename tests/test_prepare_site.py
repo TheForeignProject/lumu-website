@@ -60,7 +60,7 @@ class PrepareSiteTests(unittest.TestCase):
             self.assertEqual((self.output / "lumu website.hyperesources" / name).read_bytes(), original)
         for name in ("favicon.png", "favicon.ico"):
             self.assertEqual((self.output / name).read_bytes(), (self.source / "site" / "icons" / name).read_bytes())
-        self.assertEqual(set(p.name for p in self.output.iterdir()), {"index.html", "lumu website.hyperesources", "favicon.png", "favicon.ico", "hype-hash-router.js"})
+        self.assertEqual(set(p.name for p in self.output.iterdir()), {"index.html", "lumu website.hyperesources", "favicon.png", "favicon.ico", "hype-hash-router.js", "lumu-analytics.js"})
 
     def test_router_loads_once_at_end_of_head_before_generated_hype(self):
         self.prepare(self.source)
@@ -72,6 +72,44 @@ class PrepareSiteTests(unittest.TestCase):
         self.assertLess(head.index(b"window.designerCode = true;"), head.index(router))
         self.assertLess(published.index(router), published.index(b"lumuwebsite_hype_generated_script.js"))
         self.assertEqual(published.split(b"</head>")[1], self.original.split(b"</head>")[1])
+
+    def test_google_tag_is_published_once_in_head_without_changing_export(self):
+        self.prepare(self.source)
+        published = (self.output / "index.html").read_text(encoding="utf-8")
+        head = published.split("</head>")[0]
+        loader = 'https://www.googletagmanager.com/gtag/js?id=G-30MZQRG993'
+        self.assertEqual(published.count(loader), 1)
+        self.assertEqual(head.count("gtag('config', 'G-30MZQRG993')"), 1)
+        self.assertLess(head.index(loader), head.index("window.designerCode"))
+        self.assertIn('<script async src="' + loader + '"></script>', head)
+        self.assertEqual((self.source / "index.html").read_bytes(), self.original)
+        self.assertEqual(published.count('src="lumu-analytics.js"'), 1)
+        self.assertEqual((self.output / "lumu-analytics.js").read_bytes(), (self.source / "site" / "lumu-analytics.js").read_bytes())
+
+    def test_missing_analytics_files_preserve_previous_publication(self):
+        self.prepare(self.source)
+        previous = (self.output / "index.html").read_bytes()
+        for name in ("analytics-head.html", "lumu-analytics.js"):
+            with self.subTest(name=name):
+                path = self.source / "site" / name
+                original = path.read_bytes()
+                path.unlink()
+                with self.assertRaisesRegex(ValueError, re.escape(name)):
+                    self.prepare(self.source)
+                self.assertEqual((self.output / "index.html").read_bytes(), previous)
+                path.write_bytes(original)
+
+    def test_designer_google_tag_requires_review_before_publishing_duplicates(self):
+        for tag in (
+            b'<script async src="https://www.googletagmanager.com/gtag/js?id=G-OLD"></script>',
+            b'<script src="https://www.googletagmanager.com/gtm.js?id=GTM-OLD"></script>',
+            b"<script>gtag('config', 'G-OLD');</script>",
+        ):
+            with self.subTest(tag=tag):
+                (self.source / "index.html").write_bytes(self.original.replace(b"</head>", tag + b"</head>"))
+                with self.assertRaisesRegex(ValueError, "Google tag"):
+                    self.prepare(self.source)
+                self.assertFalse(self.output.exists())
 
     def test_publishes_router_bytes_without_changing_source(self):
         self.prepare(self.source)
@@ -93,6 +131,8 @@ class PrepareSiteTests(unittest.TestCase):
         self.assertEqual((self.output / "index.html").read_bytes().split(b"</head>")[1], replacement.split(b"</head>")[1])
         self.assertFalse((self.output / "stale.txt").exists())
         self.assertFalse((self.output / "lumu website.hyperesources" / "photo.jpg").exists())
+        self.assertEqual((self.output / "index.html").read_text().count('https://www.googletagmanager.com/gtag/js?id=G-30MZQRG993'), 1)
+        self.assertEqual((self.output / "lumu-analytics.js").read_bytes(), (self.source / "site" / "lumu-analytics.js").read_bytes())
 
     def test_existing_brand_metadata_is_replaced_without_duplicates(self):
         old_metadata = (

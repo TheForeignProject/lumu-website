@@ -2,9 +2,17 @@
 
 This is the production repository for the LUMU website at [lumu.sg](https://lumu.sg). The site is a static Tumult Hype export. A Python standard-library script prepares it for publication; no application build or package installation is needed.
 
-Pushes to `main` automatically deploy the website to GitHub Pages through [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml). The workflow runs the publishing tests, then [`scripts/prepare_site.py`](scripts/prepare_site.py). Only the prepared `_site/` directory is published: the branded `index.html`, the unchanged `lumu website.hyperesources/` directory, the root favicon files, and `hype-hash-router.js`.
+Pushes to `main` automatically deploy the website to GitHub Pages through [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml). The workflow runs the publishing tests, then [`scripts/prepare_site.py`](scripts/prepare_site.py). Only the prepared `_site/` directory is published: the branded `index.html` with the GA4 tag, the unchanged `lumu website.hyperesources/` directory, the root favicon files, `hype-hash-router.js`, and `lumu-analytics.js`.
 
 For a future designer export, replace `index.html` and the entire `lumu website.hyperesources/` directory with the new export, review the changes, and commit them to `main` after the local checks below. Preserve the generated directory name and structure exactly, including its space: the HTML and Hype scripts refer to those paths. Keep `site/`, the publishing script, and its tests when importing updates.
+
+## Google Analytics
+
+[`site/analytics-head.html`](site/analytics-head.html) contains the production Google Analytics 4 tag for measurement ID `G-30MZQRG993`. Preparation injects it once near the beginning of the published head, without editing the designer export. Keep this file when importing future exports. A missing template or an incoming Google tag makes preparation fail before replacing the previous output, so overlapping installations can be reconciled deliberately.
+
+The Google tag sends the initial `page_view`; GA4's web data stream controls additional enhanced measurement. [`site/lumu-analytics.js`](site/lumu-analytics.js) sends the separate `hype_scene_view` event with `scene_name` and the full `page_location` after Hype scenes settle. Consecutive duplicate scenes and the `dh` overlay are excluded. It does not send manual `page_view` events, avoiding duplicates if automatic history tracking is enabled later. Keep both analytics files during imports.
+
+Use Tag Assistant and the property's Realtime/DebugView reports to verify collection; GA4 account access is required to confirm receipt. To break down scenes in reports, create an event-scoped custom dimension for event parameter `scene_name` in GA4 Admin. This setup does not define booking conversions.
 
 ## Production branding
 
@@ -24,7 +32,7 @@ python scripts/prepare_site.py
 python -m http.server 8000 --directory _site
 ```
 
-If Node.js is already installed, `node tests/test_hype_hash_router.cjs` also checks the runtime's routing, history, and scroll behavior without installing packages.
+If Node.js is already installed, `node --test tests/test_hype_hash_router.cjs tests/test_analytics.cjs` also checks routing, history, scroll behavior and scene analytics without installing packages.
 
 Open `http://localhost:8000/` to preview the actual published website, including its title, favicon, and routing. Viewing the raw export directly still shows the designer's original metadata. Preparation rebuilds only the generated `_site/` directory, removing obsolete files from previous previews. Do not put hand-maintained files there.
 

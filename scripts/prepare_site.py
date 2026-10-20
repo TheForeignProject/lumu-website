@@ -1,4 +1,4 @@
-"""Stage the Hype export with production branding, using only the stdlib."""
+"""Stage the Hype export with production branding and analytics using the stdlib."""
 
 from html.parser import HTMLParser
 import json
@@ -11,6 +11,7 @@ import sys
 RESOURCES = "lumu website.hyperesources"
 HYPE_SCRIPT = "lumuwebsite_hype_generated_script.js"
 ROUTER_SCRIPT = "hype-hash-router.js"
+ANALYTICS_SCRIPT = "lumu-analytics.js"
 ROUTER_TAG = f'<script src="{ROUTER_SCRIPT}" data-hype-route-exclude=\'["dh"]\'></script>'
 ICONS = ("favicon.png", "favicon.ico")
 FLAGS = re.IGNORECASE | re.DOTALL
@@ -71,12 +72,20 @@ def brand_head(html, template):
     return html[:head.start(1)] + content + "\n" + template.rstrip() + "\n" + ROUTER_TAG + "\n" + html[head.end(1):]
 
 
+def add_google_tag(html, template):
+    """Keep one company-owned tag; reject an incoming tag instead of double-counting."""
+    if re.search(r"googletagmanager\.com/(?:gtag/js|gtm\.js)|\bgtag\s*\(\s*['\"]config['\"]", html, re.IGNORECASE):
+        raise ValueError("Existing Google tag in designer export: reconcile it with site/analytics-head.html before publishing")
+    return re.sub(r"<head\b[^>]*>", lambda match: match.group(0) + "\n" + template.rstrip() + "\n", html, count=1, flags=FLAGS)
+
+
 def prepare_site(source):
     """Publish to source/_site; never edit the input index or resource files."""
     source = Path(source).resolve()
     output = source / "_site"
     required = [source / "index.html", source / RESOURCES / HYPE_SCRIPT,
-                source / "site" / "seo-head.html", source / "site" / ROUTER_SCRIPT]
+                source / "site" / "seo-head.html", source / "site" / "analytics-head.html",
+                source / "site" / ROUTER_SCRIPT, source / "site" / ANALYTICS_SCRIPT]
     required.extend(source / "site" / "icons" / name for name in ICONS)
     for path in required:
         if not path.is_file():
@@ -86,7 +95,8 @@ def prepare_site(source):
     # read_bytes preserves the generated export's original line endings.
     original = (source / "index.html").read_bytes().decode("utf-8")
     template = (source / "site" / "seo-head.html").read_bytes().decode("utf-8")
-    published = brand_head(original, template).encode("utf-8")
+    analytics = (source / "site" / "analytics-head.html").read_bytes().decode("utf-8")
+    published = add_google_tag(brand_head(original, template), analytics).encode("utf-8")
     if f"{RESOURCES.replace(' ', '%20')}/{HYPE_SCRIPT}" not in original:
         raise ValueError("Hype script reference is missing from index.html")
 
@@ -99,6 +109,7 @@ def prepare_site(source):
     shutil.copytree(source / RESOURCES, output / RESOURCES)
     (output / "index.html").write_bytes(published)
     shutil.copyfile(source / "site" / ROUTER_SCRIPT, output / ROUTER_SCRIPT)
+    shutil.copyfile(source / "site" / ANALYTICS_SCRIPT, output / ANALYTICS_SCRIPT)
     for name in ICONS:
         shutil.copyfile(source / "site" / "icons" / name, output / name)
     return output
